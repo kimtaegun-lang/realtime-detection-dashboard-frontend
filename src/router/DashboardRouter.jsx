@@ -1,3 +1,4 @@
+import DashBoardPage from "../page/DashboardPage";
 const DashboardRouter = () => {
   return [
     {

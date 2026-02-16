@@ -1,6 +1,6 @@
 import { createBrowserRouter } from "react-router-dom";
 import { Suspense } from "react";
-import DashboardRouter from "./dashboardRouter";
+import DashboardRouter from "./DashboardRouter";
 const Root = createBrowserRouter([
   {
     path: "/",
