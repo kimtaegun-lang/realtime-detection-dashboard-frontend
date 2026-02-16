@@ -2,7 +2,7 @@ import DashBoardPage from "../page/DashboardPage";
 const DashboardRouter = () => {
   return [
     {
-      path: "dashboard",
+      path: "",
       element: <DashBoardPage />
     }
   ]
