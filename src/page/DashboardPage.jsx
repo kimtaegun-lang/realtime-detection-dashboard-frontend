@@ -148,7 +148,7 @@ useEffect(() => {
                         <tbody>
                             {recentObjects.length === 0 ? (
                                 <tr>
-                                    <td colSpan={5} className="text-gray-500 text-center align-middle">
+                                    <td colSpan={5} className="text-gray-500 text-center h-48">
                                         데이터 수신 대기중...
                                     </td>
                                 </tr>
