@@ -6,40 +6,29 @@ import TypeBadge from '../component/TypeBadge'
 import TimeFilter from '../component/TimeFilter'
 import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid,
-    Tooltip, ResponsiveContainer, LineChart, Line
+    Tooltip, ResponsiveContainer
 } from 'recharts'
 
 const DashboardPage = () => {
     const [stats, setStats] = useState(null) // 통계 데이터 상태
     const [minutes, setMinutes] = useState(5) // 시간 필터 상태 (5분 또는 30분)
     const [lastData, setLastData] = useState(null) //   마지막 수신 데이터 상태
-    const [speedHistory, setSpeedHistory] = useState([]) // 실시간 평균 속도 히스토리 상태
     const [recentObjects, setRecentObjects] = useState([]) // 최근 수신 객체 상태
 
+    
     // 웹소켓 연결
     useEffect(() => {
         connectWebSocket(
             (data) => {
                 setLastData(data)
-
-                // 속도 히스토리 누적 (최근 10개만)
-                const avgSpeed = data.objects.reduce((sum, obj) => sum + obj.speed_ms, 0) / data.objects.length
-                setSpeedHistory(prev => [
-                    ...prev.slice(-9),
-                    {
-                        time: new Date(data.timestamp).toLocaleTimeString(),
-                        avgSpeed: Math.round(avgSpeed * 10) / 10,
-                        count: data.objects.length
-                    }
-                ])
-
-                // 최근 수신 객체 누적 (최근 50개)
+                // 최근 수신 객체 누적 
                 const newObjects = data.objects.map(obj => ({
                     ...obj,
                     time: new Date(data.timestamp).toLocaleTimeString(),
                     zone: data.zone
                 }))
                 setRecentObjects(prev => [...newObjects, ...prev].slice(0, 50))
+
             }
         )
         return () => disconnectWebSocket()
@@ -47,16 +36,39 @@ const DashboardPage = () => {
 
     // stats API 호출
     useEffect(() => {
-        getData(minutes).then((res) => setStats(res.data))
+        getData(minutes).then((res) => setStats(res.data)||console.log(res.data))
     }, [minutes])
 
-    // 새 데이터 들어오면 stats 갱신
-    useEffect(() => {
-        if (lastData) {
-            getData(minutes).then((res) =>
-                setStats(res.data))
-        }
-    }, [lastData])
+
+useEffect(() => {
+    if (lastData) {
+        // 웹 소켓으로 받아온 값으로 stats 업데이트 
+        setStats(prev => {
+            if (!prev) return prev
+
+            // 새 데이터 타입별 카운트
+            const newTypeCounts = { ...prev.type_counts }
+            let totalSpeed = (prev.avg_speed * prev.total_count) || 0
+            
+            lastData.objects.forEach(obj => {
+                if (obj.type in newTypeCounts) {
+                    newTypeCounts[obj.type] += 1
+                }
+                totalSpeed += obj.speed_ms
+            })
+
+            const newTotalCount = prev.total_count + lastData.objects.length
+            const newAvgSpeed = Math.round((totalSpeed / newTotalCount) * 100) / 100
+
+            return {
+                ...prev,
+                total_count: newTotalCount,
+                type_counts: newTypeCounts,
+                avg_speed: newAvgSpeed
+            }
+        })
+    }
+}, [lastData])
 
     // 타입별 차트 데이터
     const typeChartData = stats?.type_counts
@@ -100,8 +112,7 @@ const DashboardPage = () => {
                 ))}
             </div>
             {/* 차트 */}
-            <div className="grid grid-cols-2 gap-4 mb-8 flex-3">
-
+            <div className="grid grid-cols-1 gap-4 mb-8 flex-3">
                 {/* 타입별 막대 차트 */}
                 <div className="bg-gray-800 border border-gray-700 rounded-2xl p-6">
                     <p className="text-gray-400 text-sm uppercase tracking-widest mb-4">타입별 감지수</p>
@@ -118,24 +129,6 @@ const DashboardPage = () => {
                         </BarChart>
                     </ResponsiveContainer>
                 </div>
-
-                {/* 실시간 속도 라인 차트 */}
-                <div className="bg-gray-800 border border-gray-700 rounded-2xl p-6">
-                    <p className="text-gray-400 text-sm uppercase tracking-widest mb-4">실시간 평균 속도</p>
-                    <ResponsiveContainer width="100%" height={200}>
-                        <LineChart data={speedHistory}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                            <XAxis dataKey="time" stroke="#9CA3AF" fontSize={10} />
-                            <YAxis stroke="#9CA3AF" fontSize={12} />
-                            <Tooltip
-                                contentStyle={{ backgroundColor: '#1F2937', border: '1px solid #374151', borderRadius: '8px' }}
-                                labelStyle={{ color: '#F9FAFB' }}
-                            />
-                            <Line type="monotone" dataKey="avgSpeed" stroke="#10B981" strokeWidth={2} dot={false} />
-                        </LineChart>
-                    </ResponsiveContainer>
-                </div>
-
             </div>
 
             {/* 최근 수신 데이터 테이블 */}
@@ -153,7 +146,14 @@ const DashboardPage = () => {
                             </tr>
                         </thead>
                         <tbody>
-                            {recentObjects.map((obj, i) => (
+                            {recentObjects.length === 0 ? (
+                                <tr>
+                                    <td colSpan={5} className="text-gray-500 text-center align-middle">
+                                        데이터 수신 대기중...
+                                    </td>
+                                </tr>
+                            ):(
+                            recentObjects.map((obj, i) => (
                                 <tr key={i} className="border-b border-gray-700/50 hover:bg-gray-700/30 transition-colors">
                                     <td className="py-2 px-3 text-gray-300">{obj.time}</td>
                                     <td className="py-2 px-3 text-gray-300">{obj.zone}</td>
@@ -171,12 +171,9 @@ const DashboardPage = () => {
                                     <td className="py-2 px-3 text-gray-300">{obj.speed_ms}</td>
                                     <td className="py-2 px-3 text-gray-500 text-xs truncate max-w-32">{obj.uuid}</td>
                                 </tr>
-                            ))}
+                            )))}
                         </tbody>
                     </table>
-                    {recentObjects.length === 0 && (
-                        <p className="text-gray-500 text-center py-8">데이터 수신 대기중...</p>
-                    )}
                 </div>
             </div>
 
