@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import DashboardRouter from "./DashboardRouter";
 import Layout from "../layout/Layout";
 import Loading from "../component/Loading";
+import DashBoardPage from "../page/DashboardPage";
 const Root = createBrowserRouter([
   {
     path: "/",
@@ -13,8 +14,8 @@ const Root = createBrowserRouter([
     ),
     children: [
       {
-        path:"dashboard",
-        children:DashboardRouter()
+        index: true,
+        element: <DashBoardPage />
       }
     ]
   }
